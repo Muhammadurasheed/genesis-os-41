@@ -1,0 +1,210 @@
+version: '3.8'
+
+services:
+  # Redis for caching and session management
+  redis:
+    image: redis:7-alpine
+    container_name: genesisos-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL removed - using Supabase instead
+
+  # Agent Service (Python FastAPI)
+  agent-service:
+    build:
+      context: ./agents/agent_service
+      dockerfile: Dockerfile
+    container_name: genesisos-agent-service
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    environment:
+      - AGENT_PORT=8001
+      - REDIS_URL=redis://redis:6379
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - TAVUS_API_KEY=${TAVUS_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./agents/agent_service:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+
+  # Orchestrator Service (Node.js Express)
+  orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile
+    container_name: genesisos-orchestrator
+    restart: unless-stopped
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - NODE_ENV=production
+      - REDIS_URL=redis://redis:6379
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - AGENT_SERVICE_URL=http://agent-service:8001
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
+      - PINECONE_API_KEY=${PINECONE_API_KEY}
+      - TAVUS_API_KEY=${TAVUS_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
+      agent-service:
+        condition: service_healthy
+    volumes:
+      - ./orchestrator:/app
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+
+  # API Gateway (Nginx with load balancing)
+  api-gateway:
+    image: nginx:alpine
+    container_name: genesisos-api-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    depends_on:
+      - agent-service
+      - orchestrator
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Service Discovery (Consul)
+  consul:
+    image: consul:1.15
+    container_name: genesisos-consul
+    restart: unless-stopped
+    ports:
+      - "8500:8500"
+    environment:
+      - CONSUL_BIND_INTERFACE=eth0
+    command: consul agent -dev -ui -client=0.0.0.0
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8500/v1/status/leader"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Monitoring (Prometheus)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: genesisos-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  # Metrics Collection (Grafana)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: genesisos-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin123}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+
+  # Log Aggregation (ELK Stack - Elasticsearch)
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: genesisos-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - xpack.security.enabled=false
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+
+  # Log Processing (Logstash)
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    container_name: genesisos-logstash
+    volumes:
+      - ./monitoring/logstash/pipeline:/usr/share/logstash/pipeline
+    environment:
+      - "LS_JAVA_OPTS=-Xmx256m -Xms256m"
+    depends_on:
+      - elasticsearch
+
+  # Log Visualization (Kibana)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: genesisos-kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+
+volumes:
+  redis-data:
+  prometheus-data:
+  grafana-data:
+  elasticsearch-data:
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

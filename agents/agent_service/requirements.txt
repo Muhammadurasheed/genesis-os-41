@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+python-dotenv
+httpx
+aiohttp
+redis
+pydantic
+numpy
+pinecone
+aiohttp

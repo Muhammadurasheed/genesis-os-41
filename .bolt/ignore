@@ -1,0 +1,25 @@
+# Ignore Node.js dependency directories
+node_modules/
+orchestrator/node_modules/
+
+# Ignore Python virtual environment
+agents/agent_service/venv/
+
+# Ignore build output directories
+dist/
+orchestrator/dist/
+
+# Ignore environment variable files
+.env
+agents/agent_service/.env
+orchestrator/.env
+
+# Ignore package lock files
+package-lock.json
+orchestrator/package-lock.json
+
+# Ignore crash dump files
+*.stackdump
+
+# Ignore log files
+*.log

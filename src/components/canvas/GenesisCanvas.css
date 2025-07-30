@@ -1,0 +1,224 @@
+/* Genesis Canvas Styles */
+.genesis-canvas-container {
+  @apply relative w-full h-full min-h-screen;
+  background: linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%);
+}
+
+.canvas-main-area {
+  @apply w-full h-full;
+}
+
+.genesis-flow {
+  @apply w-full h-full;
+}
+
+.genesis-background {
+  opacity: 0.3;
+}
+
+.genesis-controls {
+  @apply bg-black/50 backdrop-blur-lg border border-white/20 rounded-lg;
+}
+
+.genesis-controls button {
+  @apply text-white hover:text-purple-400 transition-colors;
+}
+
+.genesis-minimap {
+  @apply bg-black/50 backdrop-blur-lg border border-white/20 rounded-lg;
+}
+
+/* Node Styles */
+.genesis-agent-node,
+.genesis-trigger-node,
+.genesis-integration-node,
+.genesis-logic-node {
+  @apply cursor-pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.genesis-agent-node:hover,
+.genesis-trigger-node:hover,
+.genesis-integration-node:hover,
+.genesis-logic-node:hover {
+  transform: translateY(-2px);
+}
+
+/* Edge Styles */
+.react-flow__edge {
+  transition: all 0.3s ease;
+}
+
+.react-flow__edge:hover {
+  filter: brightness(1.2);
+}
+
+/* Edge Label Styles */
+.edge-label-container {
+  @apply pointer-events-auto;
+}
+
+.edge-label-container button {
+  @apply transition-all duration-200;
+}
+
+.edge-label-container button:hover {
+  transform: scale(1.1);
+}
+
+/* Collaboration Cursor Styles */
+.collaboration-cursor {
+  @apply relative pointer-events-none;
+}
+
+.cursor-pointer {
+  @apply w-4 h-4 bg-purple-500 rounded-full border-2 border-white shadow-lg;
+  clip-path: polygon(0 0, 70% 0, 100% 70%, 70% 70%, 70% 100%, 0 70%);
+}
+
+.cursor-label {
+  @apply absolute top-5 left-2 bg-purple-500 text-white text-xs px-2 py-1 rounded-md whitespace-nowrap;
+}
+
+/* Animation Classes */
+.genesis-pulse {
+  animation: genesis-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes genesis-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.genesis-glow {
+  filter: drop-shadow(0 0 10px currentColor);
+}
+
+.genesis-float {
+  animation: genesis-float 3s ease-in-out infinite;
+}
+
+@keyframes genesis-float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Connection Handle Styles */
+.react-flow__handle {
+  @apply transition-all duration-200;
+}
+
+.react-flow__handle:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 15px currentColor;
+}
+
+.react-flow__handle.connectionindicator {
+  @apply bg-purple-400;
+  box-shadow: 0 0 20px theme(colors.purple.400);
+}
+
+/* Selection Styles */
+.react-flow__node.selected {
+  @apply ring-4 ring-purple-400 ring-opacity-50;
+}
+
+.react-flow__edge.selected {
+  filter: drop-shadow(0 0 10px theme(colors.purple.400));
+}
+
+/* Panel Styles */
+.execution-status-panel {
+  @apply pointer-events-auto;
+}
+
+.ai-assistant-panel {
+  @apply pointer-events-auto;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .genesis-agent-node,
+  .genesis-trigger-node,
+  .genesis-integration-node,
+  .genesis-logic-node {
+    width: 240px !important;
+    height: auto !important;
+  }
+  
+  .genesis-controls {
+    @apply scale-90;
+  }
+  
+  .genesis-minimap {
+    @apply scale-75;
+  }
+}
+
+/* Dark Theme Enhancements */
+@media (prefers-color-scheme: dark) {
+  .genesis-canvas-container {
+    background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0a0a1a 100%);
+  }
+}
+
+/* High Performance Animations */
+.genesis-canvas-container * {
+  will-change: transform, opacity;
+}
+
+/* GPU Acceleration */
+.genesis-agent-node,
+.genesis-trigger-node,
+.genesis-integration-node,
+.genesis-logic-node,
+.react-flow__edge {
+  transform: translateZ(0);
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .genesis-pulse,
+  .genesis-float,
+  .react-flow__edge {
+    animation: none !important;
+  }
+  
+  * {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Focus Styles */
+.genesis-canvas-container button:focus,
+.genesis-canvas-container [role="button"]:focus {
+  @apply outline-none ring-2 ring-purple-400 ring-offset-2 ring-offset-black;
+}
+
+/* Loading States */
+.genesis-loading {
+  @apply relative overflow-hidden;
+}
+
+.genesis-loading::before {
+  content: '';
+  @apply absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent;
+  animation: genesis-shimmer 1.5s infinite;
+}
+
+@keyframes genesis-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}

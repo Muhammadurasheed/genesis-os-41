@@ -4,7 +4,8 @@
  */
 
 import { backendAPIService } from './backendAPIService';
-import { einsteinIntentEngine, EinsteinIntentAnalysis } from './ai/einsteinIntentEngine';
+import { enhancedEinsteinEngine } from './ai/enhancedEinsteinEngine';
+import { EinsteinIntentAnalysis } from './ai/einsteinIntentEngine';
 import { costPredictionEngine } from './ai/costPredictionEngine';
 import { realMCPIntegrationService } from './ai/realMCPIntegrationService';
 
@@ -38,10 +39,10 @@ export class BackendIntegrationService {
       console.warn('⚠️ Backend Einstein analysis failed, using frontend fallback:', error);
     }
     
-    // Fallback to frontend Einstein engine
+    // Fallback to enhanced frontend Einstein engine
     try {
-      const analysis = await einsteinIntentEngine.analyzeUserIntent(userInput);
-      console.log('✅ Einstein analysis completed via frontend fallback');
+      const analysis = await enhancedEinsteinEngine.analyzeUserIntent(userInput);
+      console.log('✅ Enhanced Einstein analysis completed via frontend fallback');
       
       return {
         success: true,

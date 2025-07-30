@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Brain, Play, Save, Share2, Users, Settings, Maximize2, Minimize2,
   Grid3X3, Activity, Network, GitBranch, Timer, TrendingUp,
-  Mic, Video, Code, Database, Palette, History, Download,
-  Upload, Bell, HelpCircle, User, ChevronDown, Zap, Bot
+  Mic, Video, History, Download,
+  Upload, Bell, HelpCircle, User, ChevronDown
 } from 'lucide-react';
 
 import { Button } from '../ui/button';

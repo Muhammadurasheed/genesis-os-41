@@ -37,7 +37,6 @@ export const CanvasLayout: React.FC<CanvasLayoutProps> = ({
     workflowNodes,
     workflowEdges,
     setWorkflowNodes,
-    setWorkflowEdges,
     addToHistory
   } = useCanvasStore();
 
@@ -227,7 +226,7 @@ export const CanvasLayout: React.FC<CanvasLayoutProps> = ({
   }, []);
 
   // Sidebar Resize Handler
-  const handleSidebarResize = useCallback((event: any, { size }: any) => {
+  const handleSidebarResize = useCallback((_event: any, { size }: any) => {
     setSidebarWidth(size.width);
   }, []);
 

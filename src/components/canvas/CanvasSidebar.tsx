@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
   Bot, Zap, Settings, GitBranch, Database, Mail, Slack, Github,
-  Globe, Code, Plug, Filter, Search, Eye, EyeOff, Lock, Unlock,
-  Layers, Palette, Grid3X3, MousePointer2, History, Save,
-  Share2, Users, Play, RotateCcw, Plus, ChevronLeft, ChevronRight
+  Globe, Code, Plug, Search, Eye, Unlock,
+  Layers, Palette, MousePointer2, History, Save,
+  RotateCcw, ChevronLeft, ChevronRight, BarChart3
 } from 'lucide-react';
 
 import { Button } from '../ui/button';

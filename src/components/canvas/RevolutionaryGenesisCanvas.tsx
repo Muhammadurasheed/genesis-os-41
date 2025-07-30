@@ -1,8 +1,7 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   ReactFlow, 
   Node, 
-  Edge, 
   addEdge, 
   useNodesState, 
   useEdgesState, 
@@ -16,18 +15,16 @@ import {
   BackgroundVariant,
   SelectionMode,
   OnConnect,
-  ReactFlowProvider,
-  Position
+  ReactFlowProvider
 } from '@xyflow/react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Bot, Zap, Settings, Users, Share2, Save, Play, Eye, EyeOff,
-  Brain, Network, Activity, Sparkles, MousePointer2, Layers,
-  GitBranch, History, Palette, Grid3X3, Move, RotateCcw,
-  Maximize2, Minimize2, Mic, Video, MessageSquare, Code,
-  Database, Mail, Slack, Github, Globe, Cpu, Timer,
-  BarChart3, TrendingUp, AlertTriangle, CheckCircle2,
-  ArrowRight, Plus, Filter, Search, Lock, Unlock
+  Bot, Zap, Settings, Users, Save, Play, Eye,
+  Brain, Network, Activity, Sparkles, Layers,
+  GitBranch, Grid3X3, RotateCcw,
+  Maximize2, Minimize2, MessageSquare, Code,
+  Database, Mail, Slack, Github, Timer,
+  TrendingUp, CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -35,21 +32,15 @@ import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
 import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { Switch } from '../ui/switch';
-import { Slider } from '../ui/slider';
 import { Separator } from '../ui/separator';
-import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Progress } from '../ui/progress';
 import { HolographicButton } from '../ui/HolographicButton';
 
 // Types and Services
 import { NodeData, CanvasEdge } from '../../types/canvas';
-import { useCanvasStore } from '../../stores/canvasStore';
-import { useCanvasUIStore } from '../../stores/canvasUIStore';
 import { revolutionaryCanvasEngine } from '../../services/canvas/revolutionaryCanvasEngine';
-import { backendIntegrationService } from '../../services/backendIntegrationService';
 
 import '@xyflow/react/dist/style.css';
 import './GenesisCanvas.css';
@@ -355,16 +346,15 @@ export const RevolutionaryGenesisCanvas: React.FC<RevolutionaryGenesisCanvasProp
   onExecute,
   className = ''
 }) => {
-  // Hooks and State
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const { fitView, zoomIn, zoomOut, zoomTo } = useReactFlow();
+  // Hooks and State with proper types
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node<NodeData>>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<CanvasEdge>([]);
+  const { fitView } = useReactFlow();
   
   // Canvas State
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [canvasMode, setCanvasMode] = useState<'design' | 'simulate' | 'debug'>('design');
   const [isCollaborating, setIsCollaborating] = useState(false);
-  const [selectedNodes, setSelectedNodes] = useState<string[]>([]);
   const [showMinimap, setShowMinimap] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
   const [showMetrics, setShowMetrics] = useState(true);
@@ -441,7 +431,7 @@ export const RevolutionaryGenesisCanvas: React.FC<RevolutionaryGenesisCanvasProp
   // Connection Handler
   const onConnect: OnConnect = useCallback(
     (params) => {
-      const newEdge = {
+      const newEdge: CanvasEdge = {
         ...params,
         id: `edge-${params.source}-${params.target}`,
         type: 'smart',
@@ -451,7 +441,11 @@ export const RevolutionaryGenesisCanvas: React.FC<RevolutionaryGenesisCanvasProp
         data: {
           label: 'Smart Connection',
           explanation: 'AI-optimized data flow'
-        }
+        },
+        sourceHandle: params.sourceHandle || null,
+        targetHandle: params.targetHandle || null,
+        source: params.source || '',
+        target: params.target || ''
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
@@ -459,8 +453,8 @@ export const RevolutionaryGenesisCanvas: React.FC<RevolutionaryGenesisCanvasProp
   );
 
   // Node Selection Handler
-  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    setSelectedNodes([node.id]);
+  const onNodeClick = useCallback((_event: React.MouseEvent, node: Node) => {
+    console.log('Node selected:', node.id);
   }, []);
 
   // AI Auto-Layout

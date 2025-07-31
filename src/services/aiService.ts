@@ -38,8 +38,8 @@ export const aiService = {
     }
     
     try {
-      // Determine which model to use
-      const modelId = options?.modelId || 'gemini-pro';
+      // Determine which model to use - optimal free tier model
+      const modelId = options?.modelId || 'gemini-2.0-flash-exp'; // 15 RPM, 1M TPM, 200 RPD
       const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${apiKey}`;
       
       // Prepare the request body
@@ -182,30 +182,30 @@ export interface AIModel {
  */
 export const AVAILABLE_MODELS: AIModel[] = [
   {
-    id: 'gemini-flash',
-    name: 'Gemini Flash',
+    id: 'gemini-2.0-flash-exp',
+    name: 'Gemini 2.0 Flash',
     provider: 'google',
-    description: 'Fast, efficient model for everyday tasks',
-    capabilities: ['text generation', 'chat', 'summarization'],
-    contextWindow: 128000,
-    tokenLimit: 2048,
-    pricing: {
-      input: 0.25,
-      output: 0.50
-    },
-    status: 'available'
-  },
-  {
-    id: 'gemini-pro',
-    name: 'Gemini Pro',
-    provider: 'google',
-    description: 'Advanced model with stronger reasoning capabilities',
+    description: 'Optimal free tier model with excellent performance',
     capabilities: ['text generation', 'chat', 'reasoning', 'code generation'],
     contextWindow: 1000000,
     tokenLimit: 8192,
     pricing: {
-      input: 0.50,
-      output: 1.50
+      input: 0.0, // Free tier
+      output: 0.0 // Free tier
+    },
+    status: 'available'
+  },
+  {
+    id: 'gemini-2.5-flash',
+    name: 'Gemini 2.5 Flash',
+    provider: 'google',
+    description: 'Latest fast model for everyday tasks',
+    capabilities: ['text generation', 'chat', 'summarization', 'reasoning'],
+    contextWindow: 250000,
+    tokenLimit: 8192,
+    pricing: {
+      input: 0.0, // Free tier
+      output: 0.0 // Free tier
     },
     status: 'available'
   },

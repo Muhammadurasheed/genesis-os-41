@@ -23,8 +23,8 @@ interface GeminiResponse {
 class GeminiService {
   private apiKey: string;
   private baseUrl = 'https://generativelanguage.googleapis.com/v1beta';
-  private defaultModel = 'gemini-1.5-pro-002';
-  private rateLimitDelay = 1000; // 1 second between requests
+  private defaultModel = 'gemini-2.0-flash-exp'; // Optimal free tier model: 15 RPM, 1M TPM, 200 RPD
+  private rateLimitDelay = 4000; // 4 seconds between requests for free tier (15 RPM = ~4s)
   private lastRequestTime = 0;
 
   constructor() {
@@ -118,7 +118,7 @@ class GeminiService {
     try {
       await this.generateText({
         prompt: 'Hello',
-        model: 'gemini-flash',
+        model: 'gemini-2.0-flash-exp', // Use optimal free tier model
         maxTokens: 10
       });
       return true;

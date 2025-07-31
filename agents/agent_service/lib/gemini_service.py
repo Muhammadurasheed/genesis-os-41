@@ -19,14 +19,15 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Gemini API configuration
 GEMINI_API_URL = os.getenv("GEMINI_API_URL", "https://generativelanguage.googleapis.com/v1beta/models")
-GEMINI_PRO_MODEL = os.getenv("GEMINI_PRO_MODEL", "gemini-2.0-flash-lite")
-GEMINI_PRO_VISION_MODEL = os.getenv("GEMINI_PRO_VISION_MODEL", "gemini-2.0-flash-lite") 
-GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-2.0-flash-lite")
-GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")
-GEMINI_DEFAULT_MODEL = os.getenv("GEMINI_DEFAULT_MODEL", GEMINI_FLASH_MODEL)
+GEMINI_PRO_MODEL = os.getenv("GEMINI_PRO_MODEL", "gemini-2.0-flash-exp")  # Optimal free tier: 15 RPM, 1M TPM, 200 RPD
+GEMINI_PRO_VISION_MODEL = os.getenv("GEMINI_PRO_VISION_MODEL", "gemini-2.0-flash-exp") 
+GEMINI_FLASH_MODEL = os.getenv("GEMINI_FLASH_MODEL", "gemini-2.0-flash-exp")  # Best free tier model
+GEMINI_EMBEDDING_MODEL = os.getenv("GEMINI_EMBEDDING_MODEL", "text-embedding-004")  # Embeddings model
+GEMINI_DEFAULT_MODEL = os.getenv("GEMINI_DEFAULT_MODEL", GEMINI_FLASH_MODEL)  # Use flash as default
 GEMINI_RETRY_ATTEMPTS = int(os.getenv("GEMINI_RETRY_ATTEMPTS", "3"))
-GEMINI_RETRY_DELAY = float(os.getenv("GEMINI_RETRY_DELAY", "1.0"))
+GEMINI_RETRY_DELAY = float(os.getenv("GEMINI_RETRY_DELAY", "5.0"))  # 5 seconds for free tier rate limits
 GEMINI_TIMEOUT = float(os.getenv("GEMINI_TIMEOUT", "60.0"))
+GEMINI_RATE_LIMIT_DELAY = float(os.getenv("GEMINI_RATE_LIMIT_DELAY", "4.0"))  # 4 seconds between requests (15 RPM = ~4s)
 GEMINI_REQUEST_CACHE_ENABLED = os.getenv("GEMINI_REQUEST_CACHE_ENABLED", "true").lower() == "true"
 GEMINI_REQUEST_CACHE_TTL = int(os.getenv("GEMINI_REQUEST_CACHE_TTL", "3600"))
 GEMINI_FALLBACK_TO_MOCK = os.getenv("GEMINI_FALLBACK_TO_MOCK", "true").lower() == "true"
@@ -44,7 +45,7 @@ class GeminiService:
         
         Args:
             api_key: The Gemini API key. If None, will use environment variable.
-            model: The Gemini model to use. Defaults to gemini-pro.
+            model: The Gemini model to use. Defaults to optimal free tier model.
             timeout: Request timeout in seconds.
             retry_attempts: Number of retry attempts for failed requests.
             retry_delay: Delay between retry attempts in seconds.
@@ -55,6 +56,8 @@ class GeminiService:
         self.redis_client = None
         self.retry_attempts = retry_attempts
         self.retry_delay = retry_delay
+        self.last_request_time = 0  # For rate limiting
+        self.rate_limit_delay = GEMINI_RATE_LIMIT_DELAY  # 4 seconds for free tier
         
         if not self.api_key or self.api_key.startswith("your_"):
             logger.warning("⚠️ No valid Gemini API key found. Using mock responses.")
@@ -214,8 +217,17 @@ class GeminiService:
         # Implement retry logic
         for attempt in range(self.retry_attempts):
             try:
+                # Enforce rate limiting for free tier
+                current_time = time.time()
+                time_since_last = current_time - self.last_request_time
+                if time_since_last < self.rate_limit_delay:
+                    wait_time = self.rate_limit_delay - time_since_last
+                    logger.info(f"⏳ Rate limiting: waiting {wait_time:.1f}s before next request")
+                    await asyncio.sleep(wait_time)
+                
                 # Make API request
                 start_time = time.time()
+                self.last_request_time = start_time  # Update last request time
                 response = await self.client.post(
                     url,
                     json=request_body

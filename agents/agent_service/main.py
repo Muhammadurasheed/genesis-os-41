@@ -16,7 +16,7 @@ from lib.memory_service import get_memory_service
 from lib.agent_manager import get_agent_manager
 from lib.gemini_service import get_gemini_service
 from lib.voice_service import get_voice_service
-from lib.monitoring_service import monitoring_service
+from lib.monitoring_service import monitoring_service, MetricType
 from lib.voice_simulation_service import voice_simulation_service
 from lib.video_simulation_service import video_simulation_service
 
@@ -241,7 +241,7 @@ async def execute_agent(agent_id: str, agent_input: AgentInput):
         logger.info(f"🤖 Agent {agent_id} executing with monitoring ID: {execution_id}")
         
         # Record metrics
-        monitoring_service.record_metric("agent_execution_started", 1, {"agent_id": agent_id}, monitoring_service.MetricType.COUNTER)
+        monitoring_service.record_metric("agent_execution_started", 1, {"agent_id": agent_id}, MetricType.COUNTER)
         
         # Add execution ID to context
         context["executionId"] = execution_id
@@ -250,7 +250,7 @@ async def execute_agent(agent_id: str, agent_input: AgentInput):
         # Note if this is a test/simulation
         is_simulation = context.get("isSimulation", False)
         if is_simulation:
-            monitoring_service.record_metric("simulation_execution", 1, {"agent_id": agent_id}, monitoring_service.MetricType.COUNTER)
+            monitoring_service.record_metric("simulation_execution", 1, {"agent_id": agent_id}, MetricType.COUNTER)
         
         # Execute the agent with function call tracking
         start_time = time.time()
@@ -281,16 +281,16 @@ async def execute_agent(agent_id: str, agent_input: AgentInput):
             monitoring_service.record_function_call(execution_id, "voice_service.synthesize_speech", voice_duration, audio_data is not None)
             
             if audio_data:
-                monitoring_service.record_metric("voice_synthesis_success", 1, {"agent_id": agent_id}, monitoring_service.MetricType.COUNTER)
+                monitoring_service.record_metric("voice_synthesis_success", 1, {"agent_id": agent_id}, MetricType.COUNTER)
             else:
-                monitoring_service.record_metric("voice_synthesis_failure", 1, {"agent_id": agent_id}, monitoring_service.MetricType.COUNTER)
+                monitoring_service.record_metric("voice_synthesis_failure", 1, {"agent_id": agent_id}, MetricType.COUNTER)
         
         # Calculate total execution time
         total_duration = (time.time() - start_time) * 1000
         
         # Record comprehensive metrics
-        monitoring_service.record_metric("agent_response_time_ms", total_duration, {"agent_id": agent_id, "success": "true"}, monitoring_service.MetricType.TIMER)
-        monitoring_service.record_metric("agent_execution_success", 1, {"agent_id": agent_id}, monitoring_service.MetricType.COUNTER)
+        monitoring_service.record_metric("agent_response_time_ms", total_duration, {"agent_id": agent_id, "success": "true"}, MetricType.TIMER)
+        monitoring_service.record_metric("agent_execution_success", 1, {"agent_id": agent_id}, MetricType.COUNTER)
         
         # End execution tracking
         monitoring_service.end_execution_tracking(execution_id, "completed")
@@ -306,7 +306,7 @@ async def execute_agent(agent_id: str, agent_input: AgentInput):
     except Exception as e:
         # Record error metrics
         if 'execution_id' in locals():
-            monitoring_service.record_metric("agent_execution_error", 1, {"agent_id": agent_id, "error_type": e.__class__.__name__}, monitoring_service.MetricType.COUNTER)
+            monitoring_service.record_metric("agent_execution_error", 1, {"agent_id": agent_id, "error_type": e.__class__.__name__}, MetricType.COUNTER)
             monitoring_service.end_execution_tracking(execution_id, "error", str(e))
         
         logger.error(f"❌ Error executing agent {agent_id}: {str(e)}")
@@ -336,7 +336,7 @@ async def execute_agent(agent_id: str, agent_input: AgentInput):
             error_category = "rate_limit_error"
         
         # Record categorized error metrics
-        monitoring_service.record_metric("error_by_category", 1, {"category": error_category, "agent_id": agent_id}, monitoring_service.MetricType.COUNTER)
+        monitoring_service.record_metric("error_by_category", 1, {"category": error_category, "agent_id": agent_id}, MetricType.COUNTER)
             
         # Create detailed error response
         return JSONResponse(
@@ -645,8 +645,8 @@ async def generate_blueprint(
         execution_time = time.time() - execution_start
         
         # Record metrics
-        monitoring_service.record_metric("blueprint_generation_time", execution_time * 1000, {"success": "true"}, monitoring_service.MetricType.TIMER)
-        monitoring_service.record_metric("blueprint_generation_success", 1, {"quality": comprehensive_blueprint['generation_metadata']['quality_score']}, monitoring_service.MetricType.COUNTER)
+        monitoring_service.record_metric("blueprint_generation_time", execution_time * 1000, {"success": "true"}, MetricType.TIMER)
+        monitoring_service.record_metric("blueprint_generation_success", 1, {"quality": comprehensive_blueprint['generation_metadata']['quality_score']}, MetricType.COUNTER)
         
         logger.info(f"✅ Enhanced blueprint generated: {comprehensive_blueprint['id']}")
         logger.info(f"Quality score: {comprehensive_blueprint['generation_metadata']['quality_score']}")
@@ -672,7 +672,7 @@ async def generate_blueprint(
         logger.error(f"❌ Enhanced blueprint generation error: {str(e)}")
         
         # Record error metrics
-        monitoring_service.record_metric("blueprint_generation_error", 1, {"error_type": e.__class__.__name__}, monitoring_service.MetricType.COUNTER)
+        monitoring_service.record_metric("blueprint_generation_error", 1, {"error_type": e.__class__.__name__}, MetricType.COUNTER)
         
         # Provide fallback option
         try:

@@ -22,7 +22,7 @@ class EnhancedBlueprintService:
         logger.info("🏗️ Enhanced Blueprint Service initialized")
     
     async def generate_comprehensive_blueprint(self, user_input: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Generate a comprehensive blueprint with advanced AI reasoning"""
+        """Generate a comprehensive blueprint with optimized single-call AI reasoning"""
         try:
             blueprint_id = f"blueprint-{uuid.uuid4().hex[:8]}"
             start_time = time.time()
@@ -30,28 +30,17 @@ class EnhancedBlueprintService:
             logger.info(f"🏗️ Generating comprehensive blueprint: {blueprint_id}")
             logger.info(f"User input: {user_input[:100]}...")
             
-            # Phase 1: Intent Analysis and Understanding
-            intent_analysis = await self._analyze_user_intent(user_input, context)
+            # OPTIMIZATION: Single comprehensive analysis instead of 6 separate API calls
+            comprehensive_analysis = await self._generate_unified_blueprint_analysis(user_input, context)
             
-            # Phase 2: Business Domain Intelligence
-            domain_analysis = await self._analyze_business_domain(user_input, intent_analysis)
+            # Extract components from unified analysis
+            intent_analysis = comprehensive_analysis.get("intent_analysis", {})
+            domain_analysis = comprehensive_analysis.get("domain_analysis", {})
+            agent_architecture = comprehensive_analysis.get("agent_architecture", {})
+            workflow_design = comprehensive_analysis.get("workflow_design", {})
+            integration_strategy = comprehensive_analysis.get("integration_strategy", {})
             
-            # Phase 3: Agent Architecture Design
-            agent_architecture = await self._design_agent_architecture(
-                user_input, intent_analysis, domain_analysis
-            )
-            
-            # Phase 4: Workflow Generation
-            workflow_design = await self._generate_workflow_design(
-                user_input, intent_analysis, agent_architecture
-            )
-            
-            # Phase 5: Integration Strategy
-            integration_strategy = await self._design_integration_strategy(
-                user_input, agent_architecture, workflow_design
-            )
-            
-            # Phase 6: Production Readiness Assessment
+            # Calculate production assessment locally (no API call needed)
             production_assessment = await self._assess_production_readiness(
                 agent_architecture, workflow_design, integration_strategy
             )
@@ -100,6 +89,142 @@ class EnhancedBlueprintService:
             logger.error(f"❌ Blueprint generation failed: {str(e)}")
             raise Exception(f"Failed to generate comprehensive blueprint: {str(e)}")
     
+    async def _generate_unified_blueprint_analysis(self, user_input: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Generate comprehensive blueprint analysis in a single optimized API call"""
+        
+        system_instruction = """
+        You are the GenesisOS Master Blueprint Architect - an Einstein-level AI system designer.
+        
+        Generate a comprehensive business automation blueprint in a SINGLE analysis covering:
+        1. Intent Analysis & Business Understanding
+        2. Domain Intelligence & Industry Context  
+        3. Agent Architecture Design
+        4. Workflow Design & Process Automation
+        5. Integration Strategy & Technical Requirements
+        
+        Return as complete JSON structure:
+        {
+            "intent_analysis": {
+                "primary_objective": "clear main goal",
+                "secondary_objectives": ["list of secondary goals"],
+                "business_impact": {
+                    "stakeholders": ["primary stakeholders"],
+                    "revenue_impact": "revenue impact description",
+                    "operational_impact": "operational impact"
+                },
+                "success_metrics": ["measurable KPIs"],
+                "constraints": {
+                    "timeline": "timeline analysis", 
+                    "budget": "budget considerations",
+                    "technical": "technical constraints"
+                },
+                "complexity_assessment": {
+                    "technical_complexity": "1-10 with reasoning",
+                    "business_complexity": "1-10 with reasoning"  
+                }
+            },
+            "domain_analysis": {
+                "industry_classification": "primary industry",
+                "business_model": "identified business model",
+                "technology_stack_recommendations": {
+                    "frontend": ["recommended frontend tech"],
+                    "backend": ["recommended backend tech"],
+                    "integrations": ["key integrations needed"]
+                },
+                "best_practices": ["industry best practices"],
+                "regulatory_considerations": ["compliance requirements"]
+            },
+            "agent_architecture": {
+                "guild_name": "descriptive guild name",
+                "guild_purpose": "clear purpose statement",
+                "agents": [
+                    {
+                        "id": "unique-agent-id",
+                        "name": "Agent Name", 
+                        "role": "specific role",
+                        "description": "detailed description",
+                        "core_capabilities": ["capability1", "capability2"],
+                        "tools_required": ["tool1", "tool2"],
+                        "decision_authority": "scope of decisions",
+                        "kpis": ["performance metrics"]
+                    }
+                ],
+                "communication_matrix": {
+                    "data_flow": "how data flows between agents",
+                    "conflict_resolution": "conflict resolution strategy"
+                }
+            },
+            "workflow_design": {
+                "workflows": [
+                    {
+                        "id": "workflow-id",
+                        "name": "Workflow Name",
+                        "trigger_conditions": ["trigger conditions"],
+                        "steps": [
+                            {
+                                "step_id": "step-1",
+                                "name": "Step Name",
+                                "agent_responsible": "agent-id",
+                                "action_type": "action type",
+                                "estimated_duration": "time estimate"
+                            }
+                        ],
+                        "success_metrics": ["workflow KPIs"]
+                    }
+                ],
+                "performance_targets": {
+                    "throughput": "expected throughput",
+                    "latency": "response time target"
+                }
+            },
+            "integration_strategy": {
+                "required_integrations": [
+                    {
+                        "service_name": "Service Name",
+                        "purpose": "integration purpose", 
+                        "api_type": "REST/GraphQL/etc",
+                        "authentication": "auth method"
+                    }
+                ],
+                "data_synchronization": "sync strategy",
+                "security_requirements": "security needs"
+            }
+        }
+        """
+        
+        prompt = f"""
+        Create a comprehensive business automation blueprint for:
+        
+        USER REQUIREMENT: "{user_input}"
+        CONTEXT: {json.dumps(context or {}, indent=2)}
+        
+        Design an intelligent, scalable AI agent system that maximizes automation value while ensuring reliability and maintainability.
+        Focus on practical implementation with clear business value and technical feasibility.
+        """
+        
+        try:
+            response, chain_of_thought = await self.gemini_service.generate_content(
+                prompt=prompt,
+                system_instruction=system_instruction,
+                temperature=0.4,  # Balanced creativity and precision
+                max_tokens=4096   # Larger token limit for comprehensive response
+            )
+            
+            # Parse the comprehensive response
+            analysis = json.loads(response)
+            analysis["generation_chain_of_thought"] = chain_of_thought
+            
+            logger.info("✅ Unified blueprint analysis completed successfully")
+            return analysis
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ JSON parsing failed: {e}")
+            # Fallback to structured response
+            return self._create_fallback_analysis(user_input, response)
+        except Exception as e:
+            logger.error(f"❌ Unified analysis failed: {e}")
+            return self._create_fallback_analysis(user_input, "")
+
     async def _analyze_user_intent(self, user_input: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
         """Deep analysis of user intent with multi-dimensional understanding"""
         
@@ -668,6 +793,68 @@ class EnhancedBlueprintService:
             score += 10.0
         
         return min(100.0, score)
+    
+    def _create_fallback_analysis(self, user_input: str, raw_response: str = "") -> Dict[str, Any]:
+        """Create fallback analysis when JSON parsing fails"""
+        return {
+            "intent_analysis": {
+                "primary_objective": f"Business automation for: {user_input[:100]}",
+                "success_metrics": ["Process efficiency", "Cost reduction", "User satisfaction"],
+                "complexity_assessment": {
+                    "technical_complexity": "5 - Moderate complexity",
+                    "business_complexity": "5 - Standard business process"
+                }
+            },
+            "domain_analysis": {
+                "industry_classification": "General Business",
+                "business_model": "Process Automation",
+                "technology_stack_recommendations": {
+                    "frontend": ["React", "TypeScript"],
+                    "backend": ["Node.js", "Python"],
+                    "integrations": ["REST APIs", "Webhooks"]
+                }
+            },
+            "agent_architecture": {
+                "guild_name": "Business Automation Guild",
+                "agents": [
+                    {
+                        "id": "primary-assistant",
+                        "name": "Primary Business Assistant",
+                        "role": "Main automation coordinator",
+                        "core_capabilities": ["task coordination", "decision making"],
+                        "tools_required": ["API integrations", "data processing"]
+                    }
+                ]
+            },
+            "workflow_design": {
+                "workflows": [
+                    {
+                        "id": "main-workflow",
+                        "name": "Primary Automation Workflow",
+                        "trigger_conditions": ["User request", "Scheduled execution"],
+                        "steps": [
+                            {
+                                "step_id": "step-1",
+                                "name": "Process Input",
+                                "agent_responsible": "primary-assistant",
+                                "action_type": "data_processing"
+                            }
+                        ]
+                    }
+                ]
+            },
+            "integration_strategy": {
+                "required_integrations": [
+                    {
+                        "service_name": "Core Business System",
+                        "purpose": "Data exchange",
+                        "api_type": "REST"
+                    }
+                ]
+            },
+            "fallback_used": True,
+            "raw_response": raw_response
+        }
     
     def get_blueprint(self, blueprint_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve cached blueprint"""

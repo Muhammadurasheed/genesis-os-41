@@ -53,7 +53,7 @@ class BackendAPIService {
 
     this.orchestratorClient = axios.create({
       baseURL: orchestratorUrl,
-      timeout: 30000,
+      timeout: 180000, // 3 minute timeout for blueprint generation
       headers: {
         'Content-Type': 'application/json'
       }
@@ -61,7 +61,7 @@ class BackendAPIService {
 
     this.agentServiceClient = axios.create({
       baseURL: agentServiceUrl,
-      timeout: 30000,
+      timeout: 180000, // 3 minute timeout for blueprint generation
       headers: {
         'Content-Type': 'application/json'
       }

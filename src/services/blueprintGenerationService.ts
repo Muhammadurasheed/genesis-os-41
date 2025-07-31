@@ -66,7 +66,7 @@ class BlueprintGenerationService {
   }
 
   /**
-   * Generate blueprint using backend integration
+   * Generate blueprint using backend integration with proper timeout handling
    */
   private async generateWithBackendIntegration(
     userInput: string, 
@@ -74,20 +74,32 @@ class BlueprintGenerationService {
   ): Promise<GeneratedBlueprint> {
     console.log('🔗 Using backend integration for blueprint generation');
 
-    const result = await backendIntegrationService.generateEnhancedBlueprint(userInput);
-    
-    if (!result.success || !result.data) {
-      throw new Error('Backend integration failed');
-    }
+    try {
+      // Set longer timeout for backend blueprint generation (3 minutes)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Backend timeout after 3 minutes')), 180000)
+      );
 
-    return {
-      id: `bp_${Date.now()}`,
-      analysis: result.data,
-      generated_at: new Date().toISOString(),
-      user_input: userInput,
-      confidence_score: result.data.confidence_score || 0.8,
-      generation_source: result.source === 'backend' ? 'backend' : 'frontend_enhanced'
-    };
+      const resultPromise = backendIntegrationService.generateEnhancedBlueprint(userInput);
+      
+      const result = await Promise.race([resultPromise, timeoutPromise]) as any;
+      
+      if (!result.success || !result.data) {
+        throw new Error('Backend integration failed');
+      }
+
+      return {
+        id: `bp_${Date.now()}`,
+        analysis: result.data.analysis || result.data,
+        generated_at: new Date().toISOString(),
+        user_input: userInput,
+        confidence_score: result.data.analysis?.confidence_score || 0.8,
+        generation_source: result.source === 'backend' ? 'backend' : 'frontend_enhanced'
+      };
+    } catch (error: any) {
+      console.error('Backend integration error:', error);
+      throw new Error(`Backend integration failed: ${error.message}`);
+    }
   }
 
   /**

@@ -19,6 +19,7 @@ from lib.voice_service import get_voice_service
 from lib.monitoring_service import monitoring_service, MetricType
 from lib.voice_simulation_service import voice_simulation_service
 from lib.video_simulation_service import video_simulation_service
+from lib.request_queue_service import request_queue_service
 
 # Load environment variables
 load_dotenv()
@@ -605,7 +606,7 @@ async def get_agent_memories(agent_id: str, limit: int = 10):
             }
         )
 
-# Enhanced blueprint generation endpoint with comprehensive AI reasoning
+# Enhanced blueprint generation endpoint with request queuing and rate limiting
 @app.post("/generate-blueprint")
 async def generate_blueprint(
     blueprint_input: BlueprintInput
@@ -626,48 +627,78 @@ async def generate_blueprint(
                 }
             )
         
-        # Import and initialize enhanced blueprint service
-        from lib.enhanced_blueprint_service import EnhancedBlueprintService
-        enhanced_service = EnhancedBlueprintService()
+        # Import request queue service for rate limiting
+        from lib.request_queue_service import request_queue_service
         
-        # Generate comprehensive blueprint with advanced AI reasoning
-        execution_start = time.time()
-        comprehensive_blueprint = await enhanced_service.generate_comprehensive_blueprint(
-            user_input=user_input,
-            context={
-                **context,
-                "timestamp": time.time(),
-                "request_source": "genesis_wizard",
-                "version": "v2.0",
-                "enhanced_mode": True
+        # Add request to queue for processing
+        request_id = await request_queue_service.add_request(
+            "blueprint", 
+            user_input,
+            context
+        )
+        
+        # Wait for request to be processed with proper timeout
+        max_wait_time = 180  # 3 minutes timeout
+        poll_interval = 2    # Check every 2 seconds
+        waited_time = 0
+        
+        while waited_time < max_wait_time:
+            result = request_queue_service.get_result(request_id)
+            
+            if result:
+                if result["status"] == "completed":
+                    blueprint = result["result"]
+                    logger.info(f"✅ Blueprint generation completed: {request_id}")
+                    
+                    # Record success metrics
+                    try:
+                        monitoring_service.record_metric("blueprint_generation_success", 1, 
+                                                       {"quality": blueprint.get('generation_metadata', {}).get('quality_score', 0)}, 
+                                                       MetricType.COUNTER)
+                    except:
+                        pass
+                    
+                    return {
+                        "success": True,
+                        "blueprint": blueprint,
+                        "request_id": request_id,
+                        "message": "Enhanced blueprint generated successfully",
+                        "metadata": {
+                            "blueprint_id": blueprint.get("id"),
+                            "quality_score": blueprint.get("generation_metadata", {}).get("quality_score", 0),
+                            "agents_designed": len(blueprint.get("agent_architecture", {}).get("agents", [])),
+                            "workflows_created": len(blueprint.get("workflow_design", {}).get("workflows", [])),
+                            "complexity_assessment": blueprint.get("estimated_complexity", "Unknown"),
+                            "success_probability": blueprint.get("success_probability", 0)
+                        }
+                    }
+                elif result["status"] == "failed":
+                    logger.error(f"❌ Blueprint generation failed: {request_id}")
+                    return JSONResponse(
+                        status_code=500,
+                        content={
+                            "success": False,
+                            "error": result["result"].get("error", "Unknown error"),
+                            "request_id": request_id,
+                            "message": "Blueprint generation failed"
+                        }
+                    )
+            
+            await asyncio.sleep(poll_interval)
+            waited_time += poll_interval
+        
+        # Timeout case - return accepted status for async processing
+        logger.warning(f"⏰ Blueprint generation timeout: {request_id}")
+        return JSONResponse(
+            status_code=202,
+            content={
+                "success": False,
+                "request_id": request_id,
+                "message": "Blueprint generation is taking longer than expected. Please check status later.",
+                "timeout": True,
+                "check_status_url": f"/request-status/{request_id}"
             }
         )
-        execution_time = time.time() - execution_start
-        
-        # Record metrics
-        monitoring_service.record_metric("blueprint_generation_time", execution_time * 1000, {"success": "true"}, MetricType.TIMER)
-        monitoring_service.record_metric("blueprint_generation_success", 1, {"quality": comprehensive_blueprint['generation_metadata']['quality_score']}, MetricType.COUNTER)
-        
-        logger.info(f"✅ Enhanced blueprint generated: {comprehensive_blueprint['id']}")
-        logger.info(f"Quality score: {comprehensive_blueprint['generation_metadata']['quality_score']}")
-        logger.info(f"Execution time: {execution_time:.2f}s")
-        
-        return {
-            "success": True,
-            "blueprint": comprehensive_blueprint,
-            "message": "Enhanced blueprint generated successfully",
-            "metadata": {
-                "blueprint_id": comprehensive_blueprint["id"],
-                "quality_score": comprehensive_blueprint["generation_metadata"]["quality_score"],
-                "execution_time_seconds": execution_time,
-                "agents_designed": len(comprehensive_blueprint.get("agent_architecture", {}).get("agents", [])),
-                "workflows_created": len(comprehensive_blueprint.get("workflow_design", {}).get("workflows", [])),
-                "integrations_planned": len(comprehensive_blueprint.get("integration_strategy", {}).get("required_integrations", [])),
-                "complexity_assessment": comprehensive_blueprint.get("estimated_complexity", "Unknown"),
-                "success_probability": comprehensive_blueprint.get("success_probability", 0),
-                "implementation_timeline": comprehensive_blueprint.get("implementation_roadmap", {}).get("total_estimated_duration", "Unknown")
-            }
-        }
     except Exception as e:
         logger.error(f"❌ Enhanced blueprint generation error: {str(e)}")
         
@@ -699,6 +730,51 @@ async def generate_blueprint(
                     "success": False
                 }
             )
+
+# Queue Management Endpoints
+@app.get("/queue-status")
+async def get_queue_status():
+    """Get current queue processing status"""
+    try:
+        status = request_queue_service.get_queue_status()
+        return {
+            "success": True,
+            "queue_status": status
+        }
+    except Exception as e:
+        logger.error(f"Error getting queue status: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
+
+@app.get("/request-status/{request_id}")
+async def get_request_status(request_id: str):
+    """Get status of specific request"""
+    try:
+        result = request_queue_service.get_result(request_id)
+        
+        if result:
+            return {
+                "success": True,
+                "request_id": request_id,
+                "status": result["status"],
+                "timestamp": result["timestamp"],
+                "has_result": True
+            }
+        else:
+            return {
+                "success": True,
+                "request_id": request_id,
+                "status": "processing",
+                "has_result": False
+            }
+    except Exception as e:
+        logger.error(f"Error getting request status: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"success": False, "error": str(e)}
+        )
 
 # SIMULATION REMOVED - NOW IN ORCHESTRATOR
 # Simulation endpoints have been moved to orchestrator service

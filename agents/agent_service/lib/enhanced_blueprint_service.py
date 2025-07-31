@@ -14,7 +14,7 @@ class EnhancedBlueprintService:
     
     def __init__(self):
         self.gemini_service = GeminiService(
-            model="gemini-1.5-pro",  # Use Pro for complex blueprint generation
+            model="gemini-2.0-flash",  # Use optimal free tier model
             timeout=120.0,  # Longer timeout for complex blueprints
             retry_attempts=3
         )

@@ -210,8 +210,34 @@ class EnhancedBlueprintService:
                 max_tokens=4096   # Larger token limit for comprehensive response
             )
             
+            # Log raw response for debugging
+            logger.info(f"📋 Raw Gemini response length: {len(response)}")
+            logger.info(f"📋 Response preview: {response[:200]}...")
+            
+            if not response or not response.strip():
+                logger.error("❌ Empty response from Gemini")
+                return self._create_fallback_analysis(user_input, "")
+            
+            # Clean response - remove markdown and extra text
+            cleaned_response = response.strip()
+            if cleaned_response.startswith('```json'):
+                cleaned_response = cleaned_response[7:]
+            if cleaned_response.endswith('```'):
+                cleaned_response = cleaned_response[:-3]
+            cleaned_response = cleaned_response.strip()
+            
+            # Find JSON content
+            json_start = cleaned_response.find('{')
+            json_end = cleaned_response.rfind('}') + 1
+            
+            if json_start == -1 or json_end == 0:
+                logger.error("❌ No JSON content found in response")
+                return self._create_fallback_analysis(user_input, response)
+            
+            json_content = cleaned_response[json_start:json_end]
+            
             # Parse the comprehensive response
-            analysis = json.loads(response)
+            analysis = json.loads(json_content)
             analysis["generation_chain_of_thought"] = chain_of_thought
             
             logger.info("✅ Unified blueprint analysis completed successfully")
@@ -219,6 +245,7 @@ class EnhancedBlueprintService:
             
         except json.JSONDecodeError as e:
             logger.error(f"❌ JSON parsing failed: {e}")
+            logger.error(f"❌ Failed content: {response[:500] if response else 'No response'}")
             # Fallback to structured response
             return self._create_fallback_analysis(user_input, response)
         except Exception as e:

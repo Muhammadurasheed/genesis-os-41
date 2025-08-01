@@ -401,6 +401,30 @@ class BackendAPIService {
     }
   }
 
+  // Enhanced Blueprint Generation
+  async generateEnhancedBlueprint(userInput: string): Promise<any> {
+    try {
+      console.log('🔄 Calling backend for enhanced blueprint generation');
+      
+      // Use the correct agent service endpoint with longer timeout
+      const response = await this.agentServiceClient.post('/generate-blueprint', {
+        user_input: userInput,
+        enhanced: true,
+        include_cost_prediction: true,
+        include_mcp_tools: true
+      });
+
+      return {
+        success: true,
+        source: 'backend',
+        data: response.data
+      };
+    } catch (error: any) {
+      console.error('Enhanced blueprint generation failed:', error);
+      throw error;
+    }
+  }
+
   // Phase 1 Critical Endpoints - Einstein Engine Integration
   async analyzeIntent(userInput: string): Promise<APIResponse> {
     try {

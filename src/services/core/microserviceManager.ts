@@ -63,12 +63,15 @@ class MicroserviceManager {
         const url = `${service.url}${endpoint}`;
         console.log(`🔄 Calling ${serviceName}: ${method} ${url} (attempt ${attempt})`);
 
+        // Use longer timeout for blueprint generation
+        const timeout = endpoint.includes('generate-blueprint') ? 180000 : service.timeout; // 3 minutes for blueprints
+        
         const response = await axios({
           method,
           url,
           data: method !== 'GET' ? data : undefined,
           params: method === 'GET' ? data : undefined,
-          timeout: service.timeout,
+          timeout,
           headers: {
             'Content-Type': 'application/json'
           }

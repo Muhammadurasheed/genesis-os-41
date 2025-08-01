@@ -21,14 +21,29 @@ class RequestQueueService:
         self.active_requests = 0
         self.request_history = []
         self.is_processing = False
+        self.processing_requests = set()  # Track currently processing requests
         logger.info(f"🚦 Request Queue initialized: {max_concurrent_requests} concurrent, {requests_per_minute} RPM")
     
     async def add_request(self, request_type: str, user_input: str, context: Dict[str, Any] = None) -> str:
         """Add a request to the queue and return request ID"""
+        # Create base key for deduplication (user_input hash + request_type)
+        import hashlib
+        user_hash = hashlib.md5(user_input.encode()).hexdigest()[:8]
+        base_key = f"{user_hash}_{request_type}"
+        
+        # Check if similar request is already being processed
+        if base_key in self.processing_requests:
+            logger.info(f"🔄 Similar request already processing, skipping")
+            # Return existing request ID
+            for req_id in self.processing_requests:
+                if req_id.endswith(request_type):
+                    return req_id
+        
         request_id = f"req_{int(time.time())}_{request_type}"
         
         request_data = {
             "id": request_id,
+            "base_key": base_key,
             "type": request_type,
             "user_input": user_input,
             "context": context or {},
@@ -87,6 +102,10 @@ class RequestQueueService:
     async def _handle_request(self, request_data: Dict[str, Any]):
         """Handle individual request with error handling"""
         request_id = request_data["id"]
+        base_key = request_data.get("base_key", request_id)
+        
+        # Add to processing set
+        self.processing_requests.add(base_key)
         self.active_requests += 1
         
         try:
@@ -117,6 +136,8 @@ class RequestQueueService:
             self._store_result(request_id, {"error": str(e), "status": "failed"})
             
         finally:
+            # Remove from processing set
+            self.processing_requests.discard(base_key)
             self.active_requests -= 1
     
     def _can_make_request(self) -> bool:

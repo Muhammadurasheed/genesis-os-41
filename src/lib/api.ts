@@ -377,11 +377,11 @@ export const apiMethods = {
       const preferredModel = localStorage.getItem('preferred_ai_model');
       console.log('🧠 Using AI model:', preferredModel || 'gemini-2.0-flash');
       
-      // Use microservice manager for wizard calls
+      // Use microservice manager for agent service calls (correct endpoint)
       const microserviceManager = (await import('../services/core/microserviceManager')).default;
-      const response = await microserviceManager.callService('wizard', '/generate-blueprint', {
+      const response = await microserviceManager.callService('agent-service', '/generate-blueprint', {
         user_input: userInput,
-        ai_model: preferredModel || 'gemini-pro'
+        ai_model: preferredModel || 'gemini-2.0-flash'
       }, 'POST');
       
       console.log('✅ Phase 3: Blueprint generated successfully with real AI:', response.id);

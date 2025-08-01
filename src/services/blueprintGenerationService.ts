@@ -49,14 +49,29 @@ class BlueprintGenerationService {
     let blueprint: GeneratedBlueprint;
     
     try {
+      // Always try backend first when available
       if (options.useBackendWhenAvailable !== false && readiness.ready) {
+        console.log('🚀 Using backend integration for blueprint generation');
         blueprint = await this.generateWithBackendIntegration(userInput, options);
       } else {
+        console.log('⚡ Using enhanced frontend generation');
         blueprint = await this.generateWithEnhancedFrontend(userInput, options);
       }
     } catch (error: any) {
       console.warn('🔄 Primary generation failed, using fallback:', error?.message);
-      blueprint = await this.generateFallbackBlueprint(userInput);
+      
+      // If backend fails, try enhanced frontend before fallback
+      if (options.useBackendWhenAvailable !== false) {
+        try {
+          console.log('🔄 Trying enhanced frontend after backend failure');
+          blueprint = await this.generateWithEnhancedFrontend(userInput, options);
+        } catch (frontendError: any) {
+          console.warn('🔄 Enhanced frontend also failed, using basic fallback');
+          blueprint = await this.generateFallbackBlueprint(userInput);
+        }
+      } else {
+        blueprint = await this.generateFallbackBlueprint(userInput);
+      }
     }
 
     const duration = Date.now() - startTime;
@@ -111,16 +126,21 @@ class BlueprintGenerationService {
   ): Promise<GeneratedBlueprint> {
     console.log('⚡ Using enhanced frontend generation');
 
-    const analysis = await enhancedEinsteinEngine.analyzeUserIntent(userInput);
+    try {
+      const analysis = await enhancedEinsteinEngine.analyzeUserIntent(userInput);
 
-    return {
-      id: `bp_frontend_${Date.now()}`,
-      analysis,
-      generated_at: new Date().toISOString(),
-      user_input: userInput,
-      confidence_score: analysis.confidence_score,
-      generation_source: 'frontend_enhanced'
-    };
+      return {
+        id: `bp_frontend_${Date.now()}`,
+        analysis,
+        generated_at: new Date().toISOString(),
+        user_input: userInput,
+        confidence_score: analysis.confidence_score,
+        generation_source: 'frontend_enhanced'
+      };
+    } catch (error: any) {
+      console.error('Enhanced frontend generation failed:', error);
+      throw new Error(`Enhanced frontend generation failed: ${error.message}`);
+    }
   }
 
   /**

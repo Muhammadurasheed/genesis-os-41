@@ -166,6 +166,11 @@ export interface Blueprint {
   updated_at?: string;
   conversation_state?: ConversationState;
   refinement_count?: number;
+  // Enhanced blueprint properties
+  analysis?: any;
+  generation_source?: 'backend' | 'frontend_enhanced' | 'frontend_fallback';
+  confidence_score?: number;
+  generated_at?: string;
 }
 
 export interface SimulationResult {

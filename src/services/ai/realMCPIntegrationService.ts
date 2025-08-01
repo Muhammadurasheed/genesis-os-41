@@ -85,7 +85,9 @@ export class RealMCPIntegrationService {
   private messageHandlers: Map<string, (message: MCPMessage) => Promise<any>> = new Map();
 
   constructor() {
-    this.initializeBuiltInServers();
+    this.initializeBuiltInServers().catch(error => {
+      console.warn('⚠️ MCP servers initialization failed:', error);
+    });
     this.setupMessageHandlers();
     console.log('🔗 Real MCP Integration Service initialized');
   }
@@ -93,7 +95,18 @@ export class RealMCPIntegrationService {
   /**
    * Initialize built-in MCP servers for common tools
    */
-  private initializeBuiltInServers() {
+  private async initializeBuiltInServers(): Promise<void> {
+    console.log('🔗 Initializing built-in MCP servers...');
+    
+    if (typeof window === 'undefined' && typeof process !== 'undefined') {
+      // Node.js environment - safe to use process
+      console.log('🖥️ Node.js environment detected - initializing MCP servers');
+    } else {
+      // Browser environment - skip Node.js specific initialization
+      console.log('🌐 Browser environment detected - skipping Node.js MCP servers');
+      return;
+    }
+    
     const builtInServers: MCPServer[] = [
       {
         id: 'filesystem',
@@ -155,7 +168,7 @@ export class RealMCPIntegrationService {
         transport: 'stdio',
         command: ['npx', '-y', '@modelcontextprotocol/server-brave-search'],
         env: {
-          BRAVE_API_KEY: process.env.BRAVE_API_KEY || ''
+          BRAVE_API_KEY: (typeof process !== 'undefined' && process.env?.BRAVE_API_KEY) || ''
         },
         capabilities: [
           {
@@ -172,10 +185,10 @@ export class RealMCPIntegrationService {
         transport: 'stdio',
         command: ['node', '/mcp-servers/email-server.js'],
         env: {
-          SMTP_HOST: process.env.SMTP_HOST || 'smtp.gmail.com',
-          SMTP_PORT: process.env.SMTP_PORT || '587',
-          SMTP_USER: process.env.SMTP_USER || '',
-          SMTP_PASS: process.env.SMTP_PASS || ''
+          SMTP_HOST: (typeof process !== 'undefined' && process.env?.SMTP_HOST) || 'smtp.gmail.com',
+          SMTP_PORT: (typeof process !== 'undefined' && process.env?.SMTP_PORT) || '587',
+          SMTP_USER: (typeof process !== 'undefined' && process.env?.SMTP_USER) || '',
+          SMTP_PASS: (typeof process !== 'undefined' && process.env?.SMTP_PASS) || ''
         },
         capabilities: [
           {

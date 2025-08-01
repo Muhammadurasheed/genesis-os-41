@@ -1105,6 +1105,30 @@ agentRouter.get('/video/avatars', async (req, res) => {
   }
 });
 
+// Blueprint generation endpoint - proxy to agent service
+agentRouter.post('/generate-blueprint', async (req, res) => {
+  try {
+    console.log('🏗️ Blueprint generation request received - proxying to agent service');
+    
+    // Forward the request to the agent service
+    const response = await axios.post(`${AGENT_SERVICE_URL}/generate-blueprint`, req.body, {
+      timeout: 180000, // 3 minute timeout
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    
+    console.log('✅ Blueprint generation successful from agent service');
+    res.json(response.data);
+  } catch (error: any) {
+    console.error('❌ Blueprint generation failed:', error.message);
+    res.status(error.response?.status || 500).json({
+      error: error.response?.data?.error || error.message || 'Failed to generate blueprint',
+      success: false
+    });
+  }
+});
+
 // Health endpoints for agent services
 agentRouter.get('/health', (req, res) => {
   res.status(200).json({

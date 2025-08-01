@@ -371,11 +371,11 @@ export const apiMethods = {
     }
 
     try {
-      console.log('🤖 Phase 3: Generating AI blueprint with Gemini Pro for:', userInput.substring(0, 50) + '...');
+      console.log('🤖 Phase 3: Generating AI blueprint with Gemini 2.0 Flash for:', userInput.substring(0, 50) + '...');
       
       // Check if we should use a specific AI model
       const preferredModel = localStorage.getItem('preferred_ai_model');
-      console.log('🧠 Using AI model:', preferredModel || 'default (Gemini Pro)');
+      console.log('🧠 Using AI model:', preferredModel || 'gemini-2.0-flash');
       
       // Use microservice manager for wizard calls
       const microserviceManager = (await import('../services/core/microserviceManager')).default;

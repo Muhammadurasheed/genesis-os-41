@@ -75,9 +75,9 @@ class BlueprintGenerationService {
     console.log('🔗 Using backend integration for blueprint generation');
 
     try {
-      // Set longer timeout for backend blueprint generation (3 minutes)
+      // Set longer timeout for backend blueprint generation (2 minutes)
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Backend timeout after 3 minutes')), 180000)
+        setTimeout(() => reject(new Error('Backend timeout after 2 minutes')), 120000)
       );
 
       const resultPromise = backendIntegrationService.generateEnhancedBlueprint(userInput);

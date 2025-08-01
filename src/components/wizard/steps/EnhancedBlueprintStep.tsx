@@ -41,18 +41,24 @@ export const EnhancedBlueprintStep: React.FC = () => {
   const generateEnhancedBlueprint = async () => {
     try {
       console.log('🧠 Phase 1: Blueprint Engine Integration Test');
+      
+      // Show loading state immediately
+      setGenerationMethod(null);
+      
       const response = await blueprintService.generateBlueprint(user_input);
       
       if (response) {
         setEnhancedBlueprint(response);
         setBlueprint(response);
         setGenerationMethod('backend');
-        toast.success('✅ Enhanced blueprint generated via backend!');
+        toast.success('✅ Enhanced blueprint generated successfully!');
+      } else {
+        throw new Error('Invalid response format');
       }
     } catch (error: any) {
       console.error('Blueprint generation error:', error);
       setGenerationMethod('fallback');
-      addError('Backend blueprint generation failed, using fallback');
+      addError('Blueprint generation failed, using fallback');
       toast.error('⚠️ Using fallback blueprint generation');
       
       // Create fallback blueprint

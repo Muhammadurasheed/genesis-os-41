@@ -25,7 +25,7 @@ class EnhancedEinsteinEngine {
       maxTokens: 8192
     };
     
-    console.log('🧠 Enhanced Einstein Engine initialized with Gemini Pro');
+    console.log('🧠 Enhanced Einstein Engine initialized with Gemini 2.0 Flash');
   }
 
   /**

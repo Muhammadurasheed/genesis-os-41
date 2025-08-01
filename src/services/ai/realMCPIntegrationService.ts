@@ -134,7 +134,7 @@ export class RealMCPIntegrationService {
         transport: 'stdio',
         command: ['npx', '-y', '@modelcontextprotocol/server-postgres'],
         env: {
-          POSTGRES_CONNECTION_STRING: process.env.SUPABASE_CONNECTION_STRING || ''
+          POSTGRES_CONNECTION_STRING: (globalThis as any).process?.env?.SUPABASE_CONNECTION_STRING || ''
         },
         capabilities: [
           {

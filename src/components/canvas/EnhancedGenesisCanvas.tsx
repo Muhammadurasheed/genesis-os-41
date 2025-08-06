@@ -14,6 +14,7 @@ import {
   ConnectionMode,
   MarkerType
 } from '@xyflow/react';
+
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Network,
@@ -85,8 +86,8 @@ export const EnhancedGenesisCanvas: React.FC<EnhancedGenesisCanvasProps> = ({
   className = ''
 }) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [_selectedNode, setSelectedNode] = useState<string | null>(null);
   const [canvasMode, setCanvasMode] = useState<'design' | 'execute' | 'debug' | 'monitor'>('design');
   const [executionState, setExecutionState] = useState<ExecutionState>({

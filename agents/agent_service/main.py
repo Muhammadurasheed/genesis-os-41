@@ -4,6 +4,8 @@ import logging
 import asyncio
 import traceback
 import time
+import docker
+import subprocess
 from dataclasses import asdict
 from typing import Dict, Any, Optional, List, Union, Annotated
 from pydantic import BaseModel, Field
@@ -27,6 +29,12 @@ load_dotenv()
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("agent_service")
+
+# Initialize container service
+from lib.container_management_service import container_service
+
+# Initialize production agent endpoints
+from endpoints.production_agent import router as production_router
 
 # Configuration from environment
 AGENT_PORT = int(os.getenv("AGENT_PORT", "8001"))
@@ -120,6 +128,9 @@ async def lifespan(app: FastAPI):
         
         # Initialize services with enhanced setup
         try:
+            # Initialize container service first
+            await container_service.initialize()
+            
             # Initialize Gemini service with Redis caching
             await gemini_service.initialize_cache()
             
@@ -1052,6 +1063,9 @@ async def get_video_simulation_result(simulation_id: str):
         )
 # Register the API router
 app.include_router(api_router)
+
+# Register production agent router
+app.include_router(production_router)
 
 # ============================================================================
 # PHASE 1 CRITICAL BACKEND ENDPOINTS - EINSTEIN ENGINE INTEGRATION  

@@ -358,7 +358,7 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
     }
   }
 
-  // Terminal Operations
+  // Terminal Operations (Real Docker Container Integration)
   async executeCommand(executionId: string, command: string): Promise<ActionResult> {
     const startTime = Date.now();
     const actionId = `cmd-${Date.now()}`;
@@ -369,10 +369,16 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
         throw new Error('Terminal session not available');
       }
 
-      console.log(`💻 Executing command: ${command}`);
+      console.log(`💻 Executing command in container: ${command}`);
       
-      // Simulate command execution
-      const output = await this.simulateCommandExecution(command);
+      // Use real Docker container execution
+      const dockerResult = await dockerContainerService.executeCommand(context.containerId, [command]);
+      
+      if (dockerResult.exitCode !== 0) {
+        throw new Error(dockerResult.stderr || 'Command execution failed');
+      }
+
+      const output = dockerResult.stdout || dockerResult.stderr || '';
       context.terminal.history.push(`$ ${command}`);
       context.terminal.history.push(output);
       
@@ -380,7 +386,12 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
         actionId,
         type: 'command',
         success: true,
-        result: { command, output },
+        result: { 
+          command, 
+          output: output,
+          exitCode: dockerResult.exitCode,
+          containerId: context.containerId
+        },
         duration: Date.now() - startTime,
         timestamp: new Date(),
         logs: [`Command: ${command}`, `Output: ${output}`]
@@ -753,15 +764,6 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
     }
   }
 
-  private async simulateCommandExecution(command: string): Promise<string> {
-    const outputs: Record<string, string> = {
-      'ls': 'file1.txt  file2.txt  directory1/',
-      'pwd': '/workspace',
-      'whoami': 'genesis-agent',
-      'date': new Date().toString()
-    };
-    return outputs[command] || `Command executed: ${command}`;
-  }
 
   private async simulateFileRead(filepath: string): Promise<string> {
     return `Content of ${filepath}\nThis is simulated file content.`;

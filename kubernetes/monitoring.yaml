@@ -1,0 +1,327 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: genesis
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+
+    rule_files:
+      - "/etc/prometheus/rules/*.yml"
+
+    scrape_configs:
+      - job_name: 'genesis-agents'
+        static_configs:
+          - targets: ['genesis-agent-service:9090']
+        metrics_path: /metrics
+        scrape_interval: 30s
+
+      - job_name: 'genesis-orchestrator'
+        static_configs:
+          - targets: ['genesis-orchestrator-service:9091']
+        metrics_path: /metrics
+        scrape_interval: 30s
+
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - genesis
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+
+      - job_name: 'redis'
+        static_configs:
+          - targets: ['redis:6379']
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: genesis
+data:
+  genesis.yml: |
+    groups:
+      - name: genesis.agents
+        rules:
+          - alert: HighAgentCPUUsage
+            expr: rate(process_cpu_seconds_total{job="genesis-agents"}[5m]) * 100 > 80
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High CPU usage on Genesis Agent"
+              description: "Agent {{ $labels.instance }} has high CPU usage ({{ $value }}%)"
+
+          - alert: HighAgentMemoryUsage
+            expr: process_resident_memory_bytes{job="genesis-agents"} / 1024 / 1024 / 1024 > 3
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High memory usage on Genesis Agent"
+              description: "Agent {{ $labels.instance }} is using {{ $value }}GB of memory"
+
+          - alert: AgentContainerDown
+            expr: up{job="genesis-agents"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Genesis Agent container is down"
+              description: "Agent container {{ $labels.instance }} has been down for more than 1 minute"
+
+      - name: genesis.orchestrator
+        rules:
+          - alert: OrchestratorDown
+            expr: up{job="genesis-orchestrator"} == 0
+            for: 1m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Genesis Orchestrator is down"
+              description: "Orchestrator {{ $labels.instance }} has been down for more than 1 minute"
+
+          - alert: HighRequestLatency
+            expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job="genesis-orchestrator"}[5m])) > 0.5
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "High request latency on Orchestrator"
+              description: "95th percentile latency is {{ $value }}s"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: genesis
+  labels:
+    app: prometheus
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+      - name: prometheus
+        image: prom/prometheus:v2.45.0
+        ports:
+        - containerPort: 9090
+        args:
+          - '--config.file=/etc/prometheus/prometheus.yml'
+          - '--storage.tsdb.path=/prometheus/'
+          - '--web.console.libraries=/etc/prometheus/console_libraries'
+          - '--web.console.templates=/etc/prometheus/consoles'
+          - '--storage.tsdb.retention.time=30d'
+          - '--web.enable-lifecycle'
+          - '--web.enable-admin-api'
+        volumeMounts:
+        - name: prometheus-config
+          mountPath: /etc/prometheus/
+        - name: prometheus-rules
+          mountPath: /etc/prometheus/rules/
+        - name: prometheus-storage
+          mountPath: /prometheus/
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+      volumes:
+      - name: prometheus-config
+        configMap:
+          name: prometheus-config
+      - name: prometheus-rules
+        configMap:
+          name: prometheus-rules
+      - name: prometheus-storage
+        emptyDir:
+          sizeLimit: 20Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: genesis
+  labels:
+    app: prometheus
+spec:
+  ports:
+  - port: 9090
+    targetPort: 9090
+  selector:
+    app: prometheus
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: genesis
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources:
+  - configmaps
+  verbs: ["get"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus
+subjects:
+- kind: ServiceAccount
+  name: prometheus
+  namespace: genesis
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-config
+  namespace: genesis
+data:
+  grafana.ini: |
+    [auth.anonymous]
+    enabled = false
+    
+    [security]
+    admin_user = admin
+    admin_password = genesis-admin-2024
+    
+    [users]
+    allow_sign_up = false
+    
+    [analytics]
+    reporting_enabled = false
+    check_for_updates = false
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: genesis
+data:
+  datasources.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:9090
+        isDefault: true
+        editable: true
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: genesis
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+    spec:
+      containers:
+      - name: grafana
+        image: grafana/grafana:10.0.0
+        ports:
+        - containerPort: 3000
+        env:
+        - name: GF_SECURITY_ADMIN_PASSWORD
+          value: "genesis-admin-2024"
+        volumeMounts:
+        - name: grafana-config
+          mountPath: /etc/grafana/
+        - name: grafana-datasources
+          mountPath: /etc/grafana/provisioning/datasources/
+        - name: grafana-storage
+          mountPath: /var/lib/grafana
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: grafana-config
+        configMap:
+          name: grafana-config
+      - name: grafana-datasources
+        configMap:
+          name: grafana-datasources
+      - name: grafana-storage
+        emptyDir:
+          sizeLimit: 10Gi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: genesis
+  labels:
+    app: grafana
+spec:
+  ports:
+  - port: 3000
+    targetPort: 3000
+  selector:
+    app: grafana

@@ -1,0 +1,163 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: genesis
+  labels:
+    name: genesis
+    genesis.ai/version: "1.0.0"
+    genesis.ai/environment: "production"
+  annotations:
+    genesis.ai/description: "Genesis AI Enterprise Agent Platform"
+    genesis.ai/maintainer: "genesis-team@genesis.ai"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: genesis-resource-quota
+  namespace: genesis
+spec:
+  hard:
+    requests.cpu: "50"
+    requests.memory: "200Gi"
+    requests.storage: "1Ti"
+    limits.cpu: "100"
+    limits.memory: "400Gi"
+    persistentvolumeclaims: "50"
+    services: "20"
+    secrets: "20"
+    configmaps: "20"
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: genesis-limit-range
+  namespace: genesis
+spec:
+  limits:
+  - type: Container
+    default:
+      cpu: "1000m"
+      memory: "2Gi"
+      ephemeral-storage: "5Gi"
+    defaultRequest:
+      cpu: "500m"
+      memory: "1Gi"
+      ephemeral-storage: "2Gi"
+    max:
+      cpu: "4000m"
+      memory: "8Gi"
+      ephemeral-storage: "20Gi"
+    min:
+      cpu: "100m"
+      memory: "256Mi"
+      ephemeral-storage: "1Gi"
+  - type: Pod
+    max:
+      cpu: "8000m"
+      memory: "16Gi"
+      ephemeral-storage: "40Gi"
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: genesis-network-policy
+  namespace: genesis
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: genesis
+    - namespaceSelector:
+        matchLabels:
+          name: ingress-nginx
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+  egress:
+  - {} # Allow all egress (agents need internet access)
+  
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: genesis-agent-service-account
+  namespace: genesis
+  labels:
+    app: genesis-agent
+    component: service-account
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: genesis-orchestrator-service-account
+  namespace: genesis
+  labels:
+    app: genesis-orchestrator
+    component: service-account
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: genesis-agent-role
+  namespace: genesis
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: genesis-agent-role-binding
+  namespace: genesis
+subjects:
+- kind: ServiceAccount
+  name: genesis-agent-service-account
+  namespace: genesis
+roleRef:
+  kind: Role
+  name: genesis-agent-role
+  apiGroup: rbac.authorization.k8s.io
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: genesis-orchestrator-role
+  namespace: genesis
+rules:
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "replicasets"]
+  verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: genesis-orchestrator-role-binding
+  namespace: genesis
+subjects:
+- kind: ServiceAccount
+  name: genesis-orchestrator-service-account
+  namespace: genesis
+roleRef:
+  kind: Role
+  name: genesis-orchestrator-role
+  apiGroup: rbac.authorization.k8s.io

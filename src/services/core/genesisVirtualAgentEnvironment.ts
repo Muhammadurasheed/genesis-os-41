@@ -5,6 +5,8 @@
 
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
+import { realPlaywrightService } from './realPlaywrightService';
+import { dockerContainerService } from './dockerContainerService';
 
 export interface AgentContainerConfig {
   agentId: string;
@@ -200,7 +202,7 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
     return executionContext;
   }
 
-  // Browser Automation Engine
+  // Browser Automation Engine (Real Playwright Integration)
   async navigateToPage(executionId: string, url: string): Promise<ActionResult> {
     const startTime = Date.now();
     const actionId = `navigate-${Date.now()}`;
@@ -211,14 +213,21 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
         throw new Error('Browser session not available');
       }
 
-      console.log(`🌐 Navigating to: ${url}`);
+      console.log(`🌐 Navigating to: ${url} (Real Playwright)`);
       
-      // Simulate navigation (in real implementation, use Playwright/Puppeteer)
+      // Use real Playwright service
+      const playwrightResult = await realPlaywrightService.navigateToPage(context.browser.sessionId, url);
+      
+      if (!playwrightResult.success) {
+        throw new Error(playwrightResult.error || 'Navigation failed');
+      }
+
+      // Update context with real page data
       const page: BrowserPage = {
-        pageId: uuidv4(),
-        url,
-        title: await this.getPageTitle(url),
-        screenshot: await this.takeScreenshot(executionId),
+        pageId: playwrightResult.result.pageId,
+        url: playwrightResult.result.url,
+        title: playwrightResult.result.title,
+        screenshot: playwrightResult.screenshot,
         isActive: true
       };
 
@@ -228,10 +237,10 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
         actionId,
         type: 'navigation',
         success: true,
-        result: { url, title: page.title },
+        result: { url: page.url, title: page.title, pageId: page.pageId },
         duration: Date.now() - startTime,
         timestamp: new Date(),
-        screenshots: [page.screenshot!]
+        screenshots: playwrightResult.screenshot ? [playwrightResult.screenshot] : []
       };
 
       this.emit('actionCompleted', result);
@@ -263,19 +272,23 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
         throw new Error('Browser session not available');
       }
 
-      console.log(`👆 Clicking element: ${selector}`);
+      console.log(`👆 Clicking element: ${selector} (Real Playwright)`);
       
-      // Simulate click action
-      const screenshot = await this.takeScreenshot(executionId);
+      // Use real Playwright service
+      const playwrightResult = await realPlaywrightService.clickElement(context.browser.sessionId, selector);
+      
+      if (!playwrightResult.success) {
+        throw new Error(playwrightResult.error || 'Click failed');
+      }
       
       const result: ActionResult = {
         actionId,
         type: 'click',
         success: true,
-        result: { selector, clicked: true },
+        result: playwrightResult.result,
         duration: Date.now() - startTime,
         timestamp: new Date(),
-        screenshots: [screenshot]
+        screenshots: playwrightResult.screenshot ? [playwrightResult.screenshot] : []
       };
 
       this.emit('actionCompleted', result);
@@ -307,19 +320,23 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
         throw new Error('Browser session not available');
       }
 
-      console.log(`⌨️ Typing text: "${text}" into ${selector}`);
+      console.log(`⌨️ Typing text: "${text}" into ${selector} (Real Playwright)`);
       
-      // Simulate typing
-      const screenshot = await this.takeScreenshot(executionId);
+      // Use real Playwright service
+      const playwrightResult = await realPlaywrightService.typeText(context.browser.sessionId, selector, text);
+      
+      if (!playwrightResult.success) {
+        throw new Error(playwrightResult.error || 'Type operation failed');
+      }
       
       const result: ActionResult = {
         actionId,
         type: 'type',
         success: true,
-        result: { selector, text, typed: true },
+        result: playwrightResult.result,
         duration: Date.now() - startTime,
         timestamp: new Date(),
-        screenshots: [screenshot]
+        screenshots: playwrightResult.screenshot ? [playwrightResult.screenshot] : []
       };
 
       this.emit('actionCompleted', result);
@@ -713,13 +730,27 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
     };
   }
 
-  // Simulation methods (replace with real implementations)
-  private async getPageTitle(url: string): Promise<string> {
-    return `Page Title for ${url}`;
-  }
-
-  private async takeScreenshot(_executionId: string): Promise<string> {
-    return `data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==`;
+  // Real Docker Container Integration
+  async createRealAgentContainer(agentId: string): Promise<string> {
+    console.log(`🐳 Creating real Docker container for agent: ${agentId}`);
+    
+    try {
+      return await dockerContainerService.createAgentContainer(agentId, {
+        image: 'genesis-agent:latest',
+        resources: {
+          memory: 2048, // 2GB
+          cpus: 1,
+          disk: 5120 // 5GB
+        },
+        environment: {
+          AGENT_ID: agentId,
+          NODE_ENV: 'production'
+        }
+      });
+    } catch (error) {
+      console.error(`Failed to create real container for ${agentId}:`, error);
+      throw error;
+    }
   }
 
   private async simulateCommandExecution(command: string): Promise<string> {

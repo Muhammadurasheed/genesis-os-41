@@ -127,16 +127,12 @@ class PerformanceOptimizer extends EventEmitter {
   private config: PerformanceConfig;
   private containerPools: Map<string, ContainerPool> = new Map();
   private sessionCache: Map<string, BrowserSessionCache> = new Map();
-  private resourceMonitor: ResourceMonitor;
   private garbageCollector: GarbageCollector;
-  private optimizationEngine: OptimizationEngine;
 
   constructor(config: PerformanceConfig) {
     super();
     this.config = config;
-    this.resourceMonitor = new ResourceMonitor();
     this.garbageCollector = new GarbageCollector(config);
-    this.optimizationEngine = new OptimizationEngine(config);
     console.log('⚡ Performance Optimizer initializing...');
     this.startOptimizationLoop();
   }
@@ -177,16 +173,14 @@ class PerformanceOptimizer extends EventEmitter {
   }
 
   private async createWarmContainer(pool: ContainerPool): Promise<WarmContainer> {
-    const containerId = await dockerContainerService.createContainer({
+    const containerId = await dockerContainerService.createAgentContainer(`warm-${pool.imageType}`, {
       image: pool.creationTemplate.image,
       resources: pool.creationTemplate.resources,
       environment: {
         ...pool.creationTemplate.environment,
         PREWARMED: 'true',
         POOL_ID: pool.poolId
-      },
-      networks: pool.creationTemplate.networks,
-      name: `warm-${pool.imageType}-${Date.now()}`
+      }
     });
 
     // Start container
@@ -357,17 +351,13 @@ asyncio.run(clear_cache())
   }
 
   private async increaseCPUAllocation(containerId: string): Promise<void> {
-    // Increase CPU allocation
-    await dockerContainerService.updateContainer(containerId, {
-      cpus: '2.0' // Increase to 2 cores
-    });
+    // TODO: Update container CPU allocation via Docker API
+    console.log(`⬆️ Would increase CPU allocation for ${containerId}`);
   }
 
   private async decreaseCPUAllocation(containerId: string): Promise<void> {
-    // Decrease CPU allocation
-    await dockerContainerService.updateContainer(containerId, {
-      cpus: '0.5' // Decrease to 0.5 cores
-    });
+    // TODO: Update container CPU allocation via Docker API  
+    console.log(`⬇️ Would decrease CPU allocation for ${containerId}`);
   }
 
   // Network Bandwidth Management
@@ -556,12 +546,21 @@ asyncio.run(clear_cache())
 
   // Helper Methods
   private async getResourceMetrics(containerId: string): Promise<ResourceMetrics> {
-    const stats = await dockerContainerService.getContainerStats(containerId);
+    const stats = dockerContainerService.getContainerStatus(containerId);
+    if (!stats) {
+      return {
+        cpu: 0,
+        memory: 0,
+        disk: 0,
+        network: 0,
+        timestamp: new Date()
+      };
+    }
     return {
-      cpu: stats.cpu_percent || 0,
-      memory: stats.memory_usage || 0,
-      disk: stats.disk_usage || 0,
-      network: stats.network_io || 0,
+      cpu: stats.resourceUsage?.cpu || 0,
+      memory: stats.resourceUsage?.memory || 0,
+      disk: 0,
+      network: stats.resourceUsage?.network || 0,
       timestamp: new Date()
     };
   }
@@ -611,42 +610,14 @@ asyncio.run(clear_cache())
 }
 
 // Supporting Classes
-class ResourceMonitor {
-  async getMetrics(containerId: string): Promise<ResourceMetrics> {
-    // Implementation for resource monitoring
-    return {
-      cpu: 0,
-      memory: 0,
-      disk: 0,
-      network: 0,
-      timestamp: new Date()
-    };
-  }
-}
-
 class GarbageCollector {
-  private config: PerformanceConfig;
-
-  constructor(config: PerformanceConfig) {
-    this.config = config;
+  constructor(_config: PerformanceConfig) {
+    // Configuration stored if needed
   }
 
   async collect(): Promise<void> {
     console.log('🗑️ Running garbage collection...');
     // Implementation for garbage collection
-  }
-}
-
-class OptimizationEngine {
-  private config: PerformanceConfig;
-
-  constructor(config: PerformanceConfig) {
-    this.config = config;
-  }
-
-  async optimize(): Promise<void> {
-    console.log('⚡ Running optimization engine...');
-    // Implementation for optimization algorithms
   }
 }
 

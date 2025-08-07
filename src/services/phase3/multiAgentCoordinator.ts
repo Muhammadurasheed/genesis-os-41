@@ -128,14 +128,11 @@ export interface CacheEntry {
 class MultiAgentCoordinator extends EventEmitter {
   private clusters: Map<string, AgentCluster> = new Map();
   private coordinationConfig: AgentCoordinationConfig;
-  private sharedMemoryPool: Map<string, any> = new Map();
-  private messageRouter: MessageRouter;
   private conflictResolver: ConflictResolver;
 
   constructor(config: AgentCoordinationConfig) {
     super();
     this.coordinationConfig = config;
-    this.messageRouter = new MessageRouter();
     this.conflictResolver = new ConflictResolver(config.conflictResolution);
     console.log('🤝 Multi-Agent Coordinator initializing...');
   }
@@ -350,19 +347,11 @@ class MultiAgentCoordinator extends EventEmitter {
   private async setupClusterNetworking(cluster: AgentCluster): Promise<void> {
     const networkName = `cluster-${cluster.clusterId}`;
     
-    // Create dedicated network for cluster
-    await dockerContainerService.createNetwork(networkName, {
-      driver: 'bridge',
-      internal: false,
-      subnet: `172.21.${this.getNetworkSubnet(cluster.clusterId)}.0/24`
-    });
-
-    // Connect all cluster containers to network
-    for (const member of cluster.members) {
-      await dockerContainerService.connectToNetwork(member.containerId, networkName);
-    }
-
-    console.log(`🌐 Cluster network ${networkName} created for ${cluster.members.length} agents`);
+    // TODO: Implement network creation via Docker API
+    console.log(`🌐 Setting up cluster network ${networkName} for ${cluster.members.length} agents`);
+    
+    // For now, agents will communicate via the default genesis-network
+    console.log(`📡 Using genesis-network for cluster communication`);
   }
 
   // Communication Methods
@@ -404,7 +393,7 @@ print(f"Received task: {task_data['taskId']}")
     return container?.containerId || '';
   }
 
-  private getAgentCapabilities(agentId: string): string[] {
+  private getAgentCapabilities(_agentId: string): string[] {
     // Return capabilities based on agent configuration
     return ['browser', 'terminal', 'file_system', 'network'];
   }
@@ -444,19 +433,19 @@ print(f"Received task: {task_data['taskId']}")
     return agents.reduce((min, agent) => agent.load < min.load ? agent : min);
   }
 
-  private selectResourceBased(agents: AgentMember[], task: CoordinatedTask): AgentMember {
+  private selectResourceBased(agents: AgentMember[], _task: CoordinatedTask): AgentMember {
     // Select based on resource requirements and availability
     return agents[0];
   }
 
-  private async resolveDependencies(cluster: AgentCluster, task: CoordinatedTask): Promise<void> {
+  private async resolveDependencies(_cluster: AgentCluster, task: CoordinatedTask): Promise<void> {
     // Check and wait for dependencies
     if (task.dependencies && task.dependencies.length > 0) {
       console.log(`⏳ Resolving dependencies for task ${task.taskId}`);
     }
   }
 
-  private async acquireTaskLocks(cluster: AgentCluster, task: CoordinatedTask): Promise<void> {
+  private async acquireTaskLocks(_cluster: AgentCluster, task: CoordinatedTask): Promise<void> {
     // Acquire necessary resource locks for task
     console.log(`🔒 Acquiring locks for task ${task.taskId}`);
   }
@@ -468,12 +457,8 @@ print(f"Received task: {task_data['taskId']}")
     }
   }
 
-  private getNetworkSubnet(clusterId: string): number {
-    // Generate subnet based on cluster ID
-    return Math.abs(clusterId.split('').reduce((a, b) => a + b.charCodeAt(0), 0)) % 255;
-  }
 
-  private async applyConflictResolution(cluster: AgentCluster, resolution: ConflictResolution): Promise<void> {
+  private async applyConflictResolution(_cluster: AgentCluster, resolution: ConflictResolution): Promise<void> {
     console.log(`✅ Applying conflict resolution: ${resolution.action}`);
   }
 
@@ -505,11 +490,6 @@ print(f"Received task: {task_data['taskId']}")
 }
 
 // Supporting Classes
-class MessageRouter {
-  async route(message: ChannelMessage): Promise<void> {
-    console.log(`📮 Routing message ${message.messageId}`);
-  }
-}
 
 class ConflictResolver {
   private strategy: string;

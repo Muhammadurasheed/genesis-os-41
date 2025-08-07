@@ -7,6 +7,7 @@ import { EventEmitter } from 'events';
 import { webInteractionEngine } from './webInteractionEngine';
 import { apiIntegrationFramework } from './apiIntegrationFramework';
 import { documentProcessingEngine } from './documentProcessingEngine';
+import { realPlaywrightService } from '../core/realPlaywrightService';
 
 
 export interface Phase2Task {
@@ -163,7 +164,10 @@ class Phase2OrchestrationService extends EventEmitter {
 
       case 'multi_tab_browsing':
         // Create browser session and handle multiple tabs
-        const sessionId = await webInteractionEngine.createBrowserSession(task.taskId);
+        const sessionId = await realPlaywrightService.createBrowserSession(`multi-tab-${task.taskId}`, {
+          headless: false,
+          screenshotOnAction: true
+        });
         const results = [];
         
         for (const url of parameters.urls) {
@@ -268,7 +272,7 @@ class Phase2OrchestrationService extends EventEmitter {
 
   // Complex Workflow Handler
   private async handleComplexWorkflow(task: Phase2Task): Promise<any> {
-    const workflow = parameters.workflow as ComplexWorkflow;
+    const workflow = task.parameters.workflow as ComplexWorkflow;
     console.log(`🔄 Executing complex workflow: ${workflow.name}`);
 
     this.activeWorkflows.set(workflow.workflowId, workflow);
@@ -408,7 +412,7 @@ class Phase2OrchestrationService extends EventEmitter {
   }
 
   // Common Workflow Templates
-  async createEcommerceWorkflow(site: string, productName: string, agentId: string): Promise<ComplexWorkflow> {
+  async createEcommerceWorkflow(site: string, productName: string, _agentId: string): Promise<ComplexWorkflow> {
     return {
       workflowId: `ecommerce-${Date.now()}`,
       name: 'E-commerce Product Search and Purchase',

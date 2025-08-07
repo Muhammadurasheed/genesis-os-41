@@ -99,7 +99,7 @@ class DocumentProcessingEngine extends EventEmitter {
       }
 
       // Get file size
-      const sizeResult = await dockerContainerService.executeCommand(agentContainer.container_id, [
+      const sizeResult = await dockerContainerService.executeCommand(agentContainer.containerId, [
         'stat', '-c', '%s', outputPath
       ]);
       const fileSize = parseInt(sizeResult.stdout.trim()) || 0;
@@ -143,7 +143,7 @@ class DocumentProcessingEngine extends EventEmitter {
       console.log(`📊 Creating Excel spreadsheet: ${task.taskId}`);
 
       const containers = dockerContainerService.getAllContainers();
-      const agentContainer = containers.find(c => c.agent_id === task.agentId);
+      const agentContainer = containers.find(c => c.agentId === task.agentId);
       
       if (!agentContainer) {
         throw new Error(`Agent container not found for: ${task.agentId}`);
@@ -157,17 +157,17 @@ class DocumentProcessingEngine extends EventEmitter {
       const excelScript = this.generateExcelScript(excelData, outputPath);
 
       // Write script to container
-      await dockerContainerService.executeCommand(agentContainer.container_id, [
+      await dockerContainerService.executeCommand(agentContainer.containerId, [
         'sh', '-c', `cat > ${scriptPath} << 'EOF'\n${excelScript}\nEOF`
       ]);
 
       // Install required packages
-      await dockerContainerService.executeCommand(agentContainer.container_id, [
+      await dockerContainerService.executeCommand(agentContainer.containerId, [
         'pip', 'install', 'openpyxl', 'xlsxwriter', 'pandas'
       ]);
 
       // Execute Excel creation
-      const result = await dockerContainerService.executeCommand(agentContainer.container_id, [
+      const result = await dockerContainerService.executeCommand(agentContainer.containerId, [
         'python3', scriptPath
       ]);
 
@@ -176,7 +176,7 @@ class DocumentProcessingEngine extends EventEmitter {
       }
 
       // Get file size
-      const sizeResult = await dockerContainerService.executeCommand(agentContainer.container_id, [
+      const sizeResult = await dockerContainerService.executeCommand(agentContainer.containerId, [
         'stat', '-c', '%s', outputPath
       ]);
       const fileSize = parseInt(sizeResult.stdout.trim()) || 0;
@@ -267,7 +267,7 @@ class DocumentProcessingEngine extends EventEmitter {
       console.log(`📤 Sending email: ${task.taskId}`);
 
       const containers = dockerContainerService.getAllContainers();
-      const agentContainer = containers.find(c => c.agent_id === task.agentId);
+      const agentContainer = containers.find(c => c.agentId === task.agentId);
       
       if (!agentContainer) {
         throw new Error(`Agent container not found for: ${task.agentId}`);
@@ -280,17 +280,17 @@ class DocumentProcessingEngine extends EventEmitter {
       const emailScript = this.generateEmailScript(emailTemplate, smtpConfig);
 
       // Write script to container
-      await dockerContainerService.executeCommand(agentContainer.container_id, [
+      await dockerContainerService.executeCommand(agentContainer.containerId, [
         'sh', '-c', `cat > ${scriptPath} << 'EOF'\n${emailScript}\nEOF`
       ]);
 
       // Install required packages
-      await dockerContainerService.executeCommand(agentContainer.container_id, [
+      await dockerContainerService.executeCommand(agentContainer.containerId, [
         'pip', 'install', 'sendgrid', 'smtplib', 'email-validator'
       ]);
 
       // Execute email sending
-      const result = await dockerContainerService.executeCommand(agentContainer.container_id, [
+      const result = await dockerContainerService.executeCommand(agentContainer.containerId, [
         'python3', scriptPath
       ]);
 
@@ -335,7 +335,7 @@ class DocumentProcessingEngine extends EventEmitter {
       console.log(`🔄 Converting file format: ${task.taskId}`);
 
       const containers = dockerContainerService.getAllContainers();
-      const agentContainer = containers.find(c => c.agent_id === task.agentId);
+      const agentContainer = containers.find(c => c.agentId === task.agentId);
       
       if (!agentContainer) {
         throw new Error(`Agent container not found for: ${task.agentId}`);
@@ -344,18 +344,18 @@ class DocumentProcessingEngine extends EventEmitter {
       const { inputPath, outputPath, fromFormat, toFormat } = task.inputData;
       
       // Install conversion tools based on format
-      await this.installConversionTools(agentContainer.container_id, fromFormat, toFormat);
+      await this.installConversionTools(agentContainer.containerId, fromFormat, toFormat);
 
       // Execute conversion
       const conversionCommand = this.getConversionCommand(inputPath, outputPath, fromFormat, toFormat);
-      const result = await dockerContainerService.executeCommand(agentContainer.container_id, conversionCommand);
+      const result = await dockerContainerService.executeCommand(agentContainer.containerId, conversionCommand);
 
       if (result.exitCode !== 0) {
         throw new Error(`Format conversion failed: ${result.stderr}`);
       }
 
       // Get output file size
-      const sizeResult = await dockerContainerService.executeCommand(agentContainer.container_id, [
+      const sizeResult = await dockerContainerService.executeCommand(agentContainer.containerId, [
         'stat', '-c', '%s', outputPath
       ]);
       const fileSize = parseInt(sizeResult.stdout.trim()) || 0;
@@ -420,7 +420,7 @@ class DocumentProcessingEngine extends EventEmitter {
   }
 
   // Private helper methods
-  private generatePDFScript(data: any, template?: string): string {
+  private generatePDFScript(data: any, _template?: string): string {
     return `
 import json
 import sys

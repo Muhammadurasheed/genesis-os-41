@@ -416,7 +416,7 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
     }
   }
 
-  // File System Operations
+  // File System Operations (Real Docker Integration)
   async readFile(executionId: string, filepath: string): Promise<ActionResult> {
     const startTime = Date.now();
     const actionId = `read-${Date.now()}`;
@@ -427,16 +427,20 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
         throw new Error('File system access not available');
       }
 
-      console.log(`📖 Reading file: ${filepath}`);
+      console.log(`📖 Reading file: ${filepath} (Real Docker)`);
       
-      // Simulate file reading
-      const content = await this.simulateFileRead(filepath);
+      // Use real Docker container execution
+      const dockerResult = await dockerContainerService.executeCommand(context.containerId, ['cat', filepath]);
+      
+      if (dockerResult.exitCode !== 0) {
+        throw new Error(dockerResult.stderr || 'File read failed');
+      }
       
       const result: ActionResult = {
         actionId,
         type: 'file_read',
         success: true,
-        result: { filepath, content, size: content.length },
+        result: { filepath, content: dockerResult.stdout, size: dockerResult.stdout.length },
         duration: Date.now() - startTime,
         timestamp: new Date()
       };
@@ -470,10 +474,18 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
         throw new Error('File system access not available');
       }
 
-      console.log(`📝 Writing file: ${filepath}`);
+      console.log(`📝 Writing file: ${filepath} (Real Docker)`);
       
-      // Simulate file writing
-      await this.simulateFileWrite(filepath, content);
+      // Use real Docker container execution
+      const escapedContent = content.replace(/'/g, "'\"'\"'");
+      const dockerResult = await dockerContainerService.executeCommand(
+        context.containerId, 
+        ['sh', '-c', `echo '${escapedContent}' > ${filepath}`]
+      );
+      
+      if (dockerResult.exitCode !== 0) {
+        throw new Error(dockerResult.stderr || 'File write failed');
+      }
       
       const result: ActionResult = {
         actionId,
@@ -765,14 +777,6 @@ class GenesisVirtualAgentEnvironment extends EventEmitter {
   }
 
 
-  private async simulateFileRead(filepath: string): Promise<string> {
-    return `Content of ${filepath}\nThis is simulated file content.`;
-  }
-
-  private async simulateFileWrite(filepath: string, content: string): Promise<void> {
-    // Simulate file writing
-    console.log(`Writing ${content.length} bytes to ${filepath}`);
-  }
 
   private async simulateEmailSend(_emailData: any): Promise<string> {
     return `msg-${Date.now()}`;

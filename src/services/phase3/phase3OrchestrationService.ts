@@ -223,7 +223,7 @@ class Phase3OrchestrationService extends EventEmitter {
       
       execution.agents = agentIds.map(agentId => ({
         agentId,
-        clusterId,
+        clusterId: clusterId.clusterId,
         containerId: `container-${agentId}`,
         role: 'worker',
         status: 'assigned',
@@ -272,7 +272,14 @@ class Phase3OrchestrationService extends EventEmitter {
       execution.security.threats.push(...threats);
 
       const violations = await securityComplianceEngine.checkCompliance();
-      execution.security.violations.push(...violations);
+      execution.security.violations.push(...violations.map(v => ({
+        violationId: v.violationId,
+        type: v.standard,
+        policyId: v.rule,
+        timestamp: v.timestamp,
+        description: v.description,
+        resolved: v.resolved
+      })));
 
       this.emit('securityEnforced', { executionId: execution.executionId, threats: threats.length, violations: violations.length });
 

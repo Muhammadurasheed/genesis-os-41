@@ -233,7 +233,7 @@ class SecurityComplianceEngine extends EventEmitter {
 
   private async captureNetworkTraffic(): Promise<void> {
     // Implementation for capturing network traffic
-    const _securityEvents = await this.analyzeNetworkTraffic();
+    await this.analyzeNetworkTraffic();
     // Process security events...
   }
 
@@ -496,34 +496,7 @@ class SecurityComplianceEngine extends EventEmitter {
   }
 }
 
-// Supporting Classes (simplified)
-class AuditLogger {
-  constructor(_config: SecurityConfig) {
-    // Configuration stored if needed
-  }
-
-  async log(_event: AuditLog): Promise<void> {
-    console.log('📝 Logging audit event...');
-  }
-}
-
-class ComplianceChecker {
-  constructor(_config: SecurityConfig) {
-    // Configuration stored if needed
-  }
-
-  async check(): Promise<ComplianceViolation[]> {
-    console.log('✅ Checking compliance...');
-    return [];
-  }
-}
-
-class ThreatDetector {
-  async detect(): Promise<ThreatEvent[]> {
-    console.log('🕵️ Detecting threats...');
-    return [];
-  }
-}
+// Supporting Classes removed - functionality integrated into main SecurityComplianceEngine
 
 // Create singleton instance
 export const securityComplianceEngine = new SecurityComplianceEngine({
